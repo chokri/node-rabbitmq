@@ -9,6 +9,13 @@ const QUEUE_NAME = 'node_queue'
 const app = express()
 app.use(bodyParser.json());
 
+const cassandra = require('cassandra-driver');
+const client = new cassandra.Client({
+    contactPoints: ['cassandra'],
+    localDataCenter: 'datacenter1',
+    keyspace: 'my-keyspace'
+});
+
 app.post('/message', (req, res) => {
     amqp.connect(AMQP_URL, (err, conn) => {
         if (err) {
@@ -36,7 +43,7 @@ app.post('/message', (req, res) => {
 })
 
 
-amqp.connect(AMQP_URL, (err, conn) => {
+amqp.connect(AMQP_URL, async (err, conn) => {
     // Create channel
     conn.createChannel((err, ch) => {
         // Declare the queue
@@ -44,9 +51,11 @@ amqp.connect(AMQP_URL, (err, conn) => {
 
         // Wait for Queue Messages
         console.log(` [⌛] Waiting for messages in ${QUEUE_NAME}. To exit press CTRL+C`)
-        ch.consume(QUEUE_NAME, msg => {
+        ch.consume(QUEUE_NAME, async (msg) => {
             console.log(` ✅ Received ${msg.content.toString()}`)
-        }, { noAck: true }
+            await client.connect();
+            await client.execute(`INSERT INTO temperatures (id, value, created_at) VALUES ('', ?, ?)`, [msg.content.toString(), new Date().toString()], { prepare: true });
+        }, {  noAck: true }
         )
     })
 })

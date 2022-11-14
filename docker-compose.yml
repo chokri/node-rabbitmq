@@ -5,12 +5,31 @@ services:
   api:
     build: .
     ports:
-      - 3000:3000
+      - 3003:3000
     volumes:
       - ./:/app
+
 
   rabbitmq:
     image: rabbitmq:3-management-alpine
     ports:
         - 5672:5672
         - 15672:15672
+
+  cassandra:
+    image: cassandra
+    ports:
+      - 9042:9042
+    entrypoint: ["/init.sh"]
+    volumes:
+      - ./cassandra/init.sh:/init.sh
+    restart: always
+
+  grafana:
+    build: grafana/
+    ports:
+      - "3060:3000"
+    environment:
+      GF_LOG_LEVEL: debug
+    volumes:
+      - ./grafana/grafana.db:/var/lib/grafana/grafana.db
